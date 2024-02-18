@@ -1,4 +1,5 @@
 package main
+
 /*
 we use package onnxruntime at /usr/local/go/src
 https://github.com/ivansuteja96/go-onnxruntime
@@ -6,7 +7,6 @@ https://github.com/ivansuteja96/go-onnxruntime
 */
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"flag"
 	"github.com/nfnt/resize"
@@ -14,7 +14,6 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
-	"io"
 	"log"
 	"math"
 	"onnxruntime"
@@ -102,14 +101,12 @@ func test() {
 		panic(err)
 	}
 	defer file.Close()
-	imageData, err := io.ReadAll(file)
+	img, imgtype, err := image.Decode(file)
 	if err != nil {
-		panic(err)
+		log.Printf("imgtype:%v err:%v\n", imgtype, err)
 	}
-	imageBuffer := bytes.NewBuffer(imageData)
-	reader := bytes.NewReader(imageBuffer.Bytes())
 	startTime := time.Now()
-	boxes, _ := detect_objects_on_image(reader)
+	boxes, _ := detect_objects_on_image(img)
 	endTime := time.Now()
 	elapsedTime := endTime.Sub(startTime)
 	log.Printf("total elapsedTime: %v ms\n", elapsedTime.Milliseconds())
@@ -117,7 +114,7 @@ func test() {
 	log.Printf("result: %s\n", buf)
 }
 
-func detect_objects_on_image(buf io.Reader) ([][]interface{}, error) {
+func detect_objects_on_image(buf image.Image) ([][]interface{}, error) {
 	startTime := time.Now()
 	input, _ := prepareInput(buf, 640)
 	endTime := time.Now()
@@ -153,9 +150,7 @@ func run_model(input []float32) ([]onnxruntime.TensorValue, error) {
 	return res, err
 }
 
-func prepareInput(buf io.Reader, size int) ([]float32, float32) {
-	// 加载图像并调整大小为指定的大小
-	img, _, _ := image.Decode(buf)
+func prepareInput(img image.Image, size int) ([]float32, float32) {
 	img = resize.Resize(uint(size), uint(size), img, resize.Lanczos3)
 
 	// 提取像素及其颜色，并归一化
